@@ -24,6 +24,7 @@
   "dependencies": {
     "cheerio": "^1.0.0-rc.2",
     "cheerio-tableparser": "^1.0.1",
+    "node-telegram-bot-api": "^0.30.0",
     "parse5": "^4.0.0"
   }
 }

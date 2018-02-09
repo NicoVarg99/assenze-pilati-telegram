@@ -1,37 +1,20 @@
 const https = require('https');
 const parse5 = require('parse5');
-var cheerio = require('cheerio'),
-cheerioTableparser = require('cheerio-tableparser');
-const document = parse5.parse('<!DOCTYPE html><html><head></head><body>Hi there!</body></html>');
-
-var requestedClass = "5INTA";
+const cheerio = require('cheerio');
+const cheerioTableparser = require('cheerio-tableparser');
+const fs = require("fs");
+const TelegramBot = require('node-telegram-bot-api');
+var requestedClass = "-";
+var token =  fs.readFileSync('token', 'utf8').trim();
 
 function transpose(a) {
-
-  // Calculate the width and height of the Array
   var w = a.length || 0;
   var h = a[0] instanceof Array ? a[0].length : 0;
-
-  // In case it is a zero matrix, no transpose routine needed.
-  if(h === 0 || w === 0) { return []; }
-
-  /**
-   * @var {Number} i Counter
-   * @var {Number} j Counter
-   * @var {Array} t Transposed data is stored in this array.
-   */
+  if (h === 0 || w === 0) { return []; }
   var i, j, t = [];
-
-  // Loop through every item in the outer array (height)
   for(i=0; i<h; i++) {
-
-    // Insert a new row (array)
     t[i] = [];
-
-    // Loop through every item per item in outer array (width)
     for(j=0; j<w; j++) {
-
-      // Save transposed data.
       t[i][j] = a[j][i];
     }
   }
@@ -45,23 +28,50 @@ function deleteRow(arr, row) {
    return arr;
 }
 
-
-
 var options = {
  hostname: 'www.istitutopilati.it'
  ,port: '443'
  ,path: '/notizie-video-sostituzioni.html'
  ,method: 'GET'
- ,headers: { 'Content-Type': 'application/json' },
+ ,headers: { 'Content-Type': 'application/html' },
  strictSSL: false
 };
 
-var req = https.request(options, function(res) {
-  var totalData = "";
+function toTitleCase(str) {
+    return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+}
 
-   res.on('data', function (data) { totalData += data; });
+function beautifyArray(array) {
+  var string = "";
+  string += "Assente: " + toTitleCase(array[3]) + "\n";
+  string += "Sostituto: " + toTitleCase(array[0]) + "\n";
+  string += "Orario: " + array[1].replace(/\./i, ':').replace(/\./i, ':').replace(/-/i, ' - ') + "\n";
+  //string += "Classe: " + array[2] + "\n";
+  if (array[4])
+    string += "Note: " + array[4] + "\n";
 
-   res.on('end', function () {
+  //console.log(string);
+  return string;
+}
+
+// Create a bot that uses 'polling' to fetch new updates
+const bot = new TelegramBot(token, {polling: true});
+
+bot.onText(/\/assenze (.+)/, (msg, match) => {
+  // 'msg' is the received Message from Telegram
+  // 'match' is the result of executing the regexp above on the text content
+  // of the message
+
+  const chatId = msg.chat.id;
+  requestedClass = match[1].toUpperCase();
+
+  var response = "";
+  var req = https.request(options, function(res) {
+    var totalData = "";
+
+    res.on('data', function (data) { totalData += data; });
+
+    res.on('end', function () {
         //console.log(data); // I can't parse it because, it's a string. why?
         //console.log(totalData);
         // data = parse5.parse(totalData);
@@ -70,66 +80,72 @@ var req = https.request(options, function(res) {
         // data = data.childNodes; //div class=body
         // //console.log(totalData);
 
-        $ = cheerio.load(totalData);
-        cheerioTableparser($);
-        var table = $(".textContent table").parsetable(false, false, true);
-        //console.log(table);
+      $ = cheerio.load(totalData);
+      cheerioTableparser($);
+      var table = $(".textContent table").parsetable(false, false, true);
+      //console.log(table);
 
-        //console.log("******************************************************");
-
+      //console.log("******************************************************");
+      if (table === undefined || table.length == 0) {
+        console.log("Error");
+        bot.sendMessage(chatId, "Errore nella richiesta al sito scolastico. Prova a visitarlo manualmente: https://www.istitutopilati.it/notizie-video-sostituzioni.html");
+      } else {
         table = transpose(table);
-
-        //console.log("Data length:" + data.length + " rows");
-
         date = table[0][0];
-
-
         righe = table.length;
         var removed = 0;
-        for (var i = 0; i < righe - removed; i++) {
-          //console.log(table[i][2]);
+        for (var i = 0; i < righe - removed; i++)
           if (!table[i][2] || table[i][2] == "CLASSE") {
-            //console.log("Remove row " + i);
             table.splice(i, 1);
             i--;
             removed++;
           }
-        }
-
-
         righe = table.length;
-
         var resultingTable = [];
 
-        for (var row in table) { //For each row
-          if (table[row][2] == requestedClass) { //If curent class = requested class
+        for (var row in table) //For each row
+          if (table[row][2] == requestedClass) //If curent class = requested class
             resultingTable.push(table[row]);
-          }
+
+        var numResults = 0;
+
+        response = "Per il " + date + " nella classe " + requestedClass + " sono previste le seguenti assenze:\n";
+
+        for (var j = 0; j < resultingTable.length; j++) { //For each column
+          response += "\n" + beautifyArray(resultingTable[j]);
+          numResults++;
         }
 
-        console.log("Validità: " + date);
+        if (numResults == 0)
+          response = "Nessuna assenza prevista per il " + date + " nella la classe " + requestedClass + ".";
 
-       for (var j = 0; j < resultingTable.length; j++) { //For each column
-         console.log("Col" + j + " - " + resultingTable[j]);
-       }
+        bot.sendMessage(chatId, response);
+      }
+    });
+  });
 
+  req.on('error', function(e) {
+    console.log('problem with request: ' + e.message);
+  });
 
-
-   });
-
-
+  req.write("");
+  req.end();
 });
 
-req.on('error', function(e) {
- console.log('problem with request: ' + e.message);
+bot.onText(/\/start/, (msg, match) => {
+  // 'msg' is the received Message from Telegram
+  // 'match' is the result of executing the regexp above on the text content
+  // of the message
+
+  const chatId = msg.chat.id;
+  bot.sendMessage(chatId, "Bot avviato. Invia un messaggio come /assenze classe");
 });
 
-req.write("");
+// Listen for any kind of message. There are different kinds of
+// messages.
+bot.on('message', (msg) => {
+  const chatId = msg.chat.id;
 
-req.end();
-
-
-
-
-//console.log(document.childNodes[1].tagName); //> 'html'
-//console.log(document);
+  // send a message to the chat acknowledging receipt of their message
+  //bot.sendMessage(chatId, 'Received your message');
+});
