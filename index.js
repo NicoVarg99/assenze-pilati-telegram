@@ -23,22 +23,22 @@ function transpose(a) {
 }
 
 function deleteRow(arr, row) {
-   arr = arr.slice(0); // make copy
-   arr.splice(row - 1, 1);
-   return arr;
+  arr = arr.slice(0); // make copy
+  arr.splice(row - 1, 1);
+  return arr;
 }
 
 var options = {
- hostname: 'www.istitutopilati.it'
- ,port: '443'
- ,path: '/notizie-video-sostituzioni.html'
- ,method: 'GET'
- ,headers: { 'Content-Type': 'application/html' },
- strictSSL: false
+  hostname: 'www.istitutopilati.it',
+  port: '443',
+  path: '/notizie-video-sostituzioni.html',
+  method: 'GET',
+  headers: { 'Content-Type': 'application/html' },
+  strictSSL: false
 };
 
 function toTitleCase(str) {
-    return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+  return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
 }
 
 function beautifyArray(array) {
@@ -57,7 +57,7 @@ function beautifyArray(array) {
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, {polling: true});
 
-bot.onText(/\/assenze (.+)/, (msg, match) => {
+function msgAssenze(msg, match) {
   // 'msg' is the received Message from Telegram
   // 'match' is the result of executing the regexp above on the text content
   // of the message
@@ -72,20 +72,11 @@ bot.onText(/\/assenze (.+)/, (msg, match) => {
     res.on('data', function (data) { totalData += data; });
 
     res.on('end', function () {
-        //console.log(data); // I can't parse it because, it's a string. why?
-        //console.log(totalData);
-        // data = parse5.parse(totalData);
-        // data = data.childNodes[1];
-        // data = data.childNodes[2]; //body
-        // data = data.childNodes; //div class=body
-        // //console.log(totalData);
 
       $ = cheerio.load(totalData);
       cheerioTableparser($);
       var table = $(".textContent table").parsetable(false, false, true);
-      //console.log(table);
 
-      //console.log("******************************************************");
       if (table === undefined || table.length == 0) {
         console.log("Error");
         bot.sendMessage(chatId, "Errore nella richiesta al sito scolastico. Prova a visitarlo manualmente: https://www.istitutopilati.it/notizie-video-sostituzioni.html");
@@ -117,7 +108,7 @@ bot.onText(/\/assenze (.+)/, (msg, match) => {
         }
 
         if (numResults == 0)
-          response = "Nessuna assenza prevista per il " + date + " nella la classe " + requestedClass + ".";
+          response = "Nessuna assenza prevista per il " + date + " nella classe " + requestedClass + ".";
 
         bot.sendMessage(chatId, response);
       }
@@ -130,7 +121,19 @@ bot.onText(/\/assenze (.+)/, (msg, match) => {
 
   req.write("");
   req.end();
+
+}
+
+bot.onText(/^\/assenze$/, (msg, match) => {
+  bot.sendMessage(msg.chat.id, "Specifica una classe!");
 });
+
+bot.onText(/^\/assenze\@assenzepilatibot$/, (msg, match) => {
+  bot.sendMessage(msg.chat.id, "Specifica una classe!");
+});
+
+bot.onText(/\/assenze (.+)/, msgAssenze);
+bot.onText(/\/assenze\@assenzepilatibot (.+)/, msgAssenze);
 
 bot.onText(/\/start/, (msg, match) => {
   // 'msg' is the received Message from Telegram
