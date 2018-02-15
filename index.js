@@ -1,5 +1,4 @@
 const https = require('https');
-const parse5 = require('parse5');
 const cheerio = require('cheerio');
 const cheerioTableparser = require('cheerio-tableparser');
 const fs = require("fs");
