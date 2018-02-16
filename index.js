@@ -12,9 +12,9 @@ function transpose(a) {
   var h = a[0] instanceof Array ? a[0].length : 0;
   if (h === 0 || w === 0) { return []; }
   var i, j, t = [];
-  for(i=0; i<h; i++) {
+  for (i = 0; i < h; i++) {
     t[i] = [];
-    for(j=0; j<w; j++) {
+    for(j = 0; j < w; j++) {
       t[i][j] = a[j][i];
     }
   }
@@ -28,7 +28,7 @@ function deleteRow(arr, row) {
   return arr;
 }
 
-var options = {
+var connectionOptions = {
   hostname: 'www.istitutopilati.it',
   port: '443',
   path: '/notizie-video-sostituzioni.html',
@@ -54,7 +54,6 @@ function beautifyArray(array, assente, sostituto, orario, classe, note) {
   if (note && array[4])
     string += "Note: " + array[4] + "\n";
 
-  //console.log(string);
   return string;
 }
 
@@ -68,7 +67,7 @@ function msgAssenze(msg, match) {
   requestedClass = match[1].toUpperCase();
 
   var response = "";
-  var req = https.request(options, function(res) {
+  var req = https.request(connectionOptions, function(res) {
     var totalData = "";
 
     res.on('data', function (data) { totalData += data; });
@@ -130,7 +129,7 @@ function msgSostituto(msg, match) {
   requestedSubstitute = match[1].toUpperCase();
 
   var response = "";
-  var req = https.request(options, function(res) {
+  var req = https.request(connectionOptions, function(res) {
     var totalData = "";
 
     res.on('data', function (data) { totalData += data; });
