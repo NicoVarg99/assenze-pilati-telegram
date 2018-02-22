@@ -211,11 +211,18 @@ bot.onText(/\/help/, (msg, match) => {
   bot.sendMessage(msg.chat.id, "Comandi disponibili:\n\n/assenze classe\n/sostituto nome");
 });
 
-// Listen for any kind of message. There are different kinds of
-// messages.
-bot.on('message', (msg) => {
-  const chatId = msg.chat.id;
+bot.onText(/.*/, (msg, match) => {
+  var date = new Date().toISOString().
+  replace(/T/, ' ').      // replace T with a space
+  replace(/\..+/, '');
 
-  // send a message to the chat acknowledging receipt of their message
-  //bot.sendMessage(chatId, 'Received your message');
+  var string = date + " - " + msg.from.first_name + " " + msg.from.last_name  + " " + msg.from.username + " "  +  msg.chat.id + " - " + match;
+  console.log(string);
+  //bot.sendMessage(msg.chat.id, "Comandi disponibili:\n\n/assenze classe\n/sostituto nome");
+
+  fs.appendFile('requests.log', string + '\n', function (err) {
+  if (err) throw err;
+  //console.log('Saved!');
+  });
+
 });

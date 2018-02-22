@@ -2,3 +2,6 @@ token
 
 # Dependency directory
 node_modules
+
+# Logs
+*.log
