@@ -210,13 +210,16 @@ bot.onText(/\/start/, (msg, match) => {
 bot.onText(/\/help/, (msg, match) => {
   bot.sendMessage(msg.chat.id, "Comandi disponibili:\n\n/assenze classe\n/sostituto nome");
 });
+bot.onText(/ping/, (msg, match) => {
+  bot.sendMessage(msg.chat.id, "pong");
+});
 
 bot.onText(/.*/, (msg, match) => {
   var date = new Date().toISOString().
   replace(/T/, ' ').      // replace T with a space
   replace(/\..+/, '');
 
-  var string = date + " - " + msg.from.first_name + " " + msg.from.last_name  + " " + msg.from.username + " "  +  msg.chat.id + " - " + match;
+  var string = date + " - " + msg.from.id + " " + msg.from.first_name + " " + msg.from.last_name  + " " + msg.from.username + " on chat "  +  msg.chat.id + " - " + match;
   console.log(string);
   //bot.sendMessage(msg.chat.id, "Comandi disponibili:\n\n/assenze classe\n/sostituto nome");
 

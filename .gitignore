@@ -1,3 +1,4 @@
+# Bot token
 token
 
 # Dependency directory
@@ -5,3 +6,6 @@ node_modules
 
 # Logs
 *.log
+
+# Nohup output
+nohup.out
