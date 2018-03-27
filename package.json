@@ -23,8 +23,7 @@
   },
   "homepage": "https://github.com/NicoVarg99/assenze-pilati-telegram#readme",
   "dependencies": {
-    "cheerio": "^1.0.0-rc.2",
-    "cheerio-tableparser": "^1.0.1",
-    "node-telegram-bot-api": "^0.30.0"
+    "node-telegram-bot-api": "^0.30.0",
+    "timediff": "^1.1.1"
   }
 }
