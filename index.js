@@ -16,7 +16,7 @@ var connectionOptions = {
   path: '/gestione_sostituzioni/lista.json',
   method: 'GET',
   headers: { 'Content-Type': 'application/json' },
-  strictSSL: false
+  strictSSL: true
 };
 
 function toTitleCase(str) {
@@ -38,7 +38,7 @@ function msgAssenze(msg, match) {
   }
 
   for (var i in assenze.values) //For each row
-    if (assenze.values[i].Classe == requestedClass) //If curent class = requested class
+    if (assenze.values[i].Classe.toUpperCase() == requestedClass) //If curent class = requested class
       resultingTable.push(assenze.values[i]);
 
   var numResults = 0;
