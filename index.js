@@ -13,7 +13,7 @@ const bot = new TelegramBot(token, {polling: true});
 var connectionOptions = {
   hostname: 'www.istitutopilati.it',
   port: '443',
-  path: '/gestione_sostituzioni/lista.json',
+  path: '/gestione_sostituzioni/sostituzioni/listaPubblica.json',
   method: 'GET',
   headers: { 'Content-Type': 'application/json' },
   strictSSL: true
@@ -37,31 +37,31 @@ function msgAssenze(msg, match) {
     return;
   }
 
-  for (var i in assenze.values) //For each row
-    if (assenze.values[i].Classe.toUpperCase() == requestedClass) //If curent class = requested class
-      resultingTable.push(assenze.values[i]);
+  for (var i in assenze.sostituzioni) //For each row
+    if (assenze.sostituzioni[i].classe.toUpperCase() == requestedClass) //If curent class = requested class
+      resultingTable.push(assenze.sostituzioni[i]);
 
   var numResults = 0;
-  response = "Per " + assenze.data_stringa + " nella classe " + requestedClass + " sono previste le seguenti assenze:\n";
+  response = "Per " + assenze.data + " nella classe " + requestedClass + " sono previste le seguenti assenze:\n";
 
   for (var i = 0; i < resultingTable.length; i++) { //For each match
-    response += "\nAssente: " + resultingTable[i].Prof_Assente + "\n";
-    response += "Sostituto: " + resultingTable[i].Prof_Sostituto + "\n";
-    response += "Orario: " + resultingTable[i].Orario + "\n";
-    if (resultingTable[i].Note != "")
-      response += "Note: " + resultingTable[i].Note + "\n";
+    response += "\nAssente: " + resultingTable[i].docenteAssente + "\n";
+    response += "Sostituto: " + resultingTable[i].docenteSostituto + "\n";
+    response += "Orario: " + resultingTable[i].orario + "\n";
+    if (resultingTable[i].note != "")
+      response += "Note: " + resultingTable[i].note + "\n";
     numResults++;
   }
 
   if (numResults == 0)
-    response = "Nessuna assenza prevista per " + assenze.data_stringa + " nella classe " + requestedClass + ".";
+    response = "Nessuna assenza prevista per " + assenze.data + " nella classe " + requestedClass + ".";
 
   bot.sendMessage(msg.chat.id, response);
 }
 
 function msgSostituto(msg, match) {
   //Searchs by substitute
-  var requestedSubstitute = match[1];
+  var requestedSubstitute = match[1].toUpperCase();
   var resultingTable = [];
 
   if (!assenze) { //If no data is there, send an error message
@@ -69,24 +69,24 @@ function msgSostituto(msg, match) {
     return;
   }
 
-  for (var i in assenze.values) //For each row
-    if (assenze.values[i].Prof_Sostituto == requestedSubstitute) //If curent class = requested class
-      resultingTable.push(assenze.values[i]);
+  for (var i in assenze.sostituzioni) //For each row
+    if (assenze.sostituzioni[i].docenteSostituto.toUpperCase().includes(requestedSubstitute)) //If curent class = requested class
+      resultingTable.push(assenze.sostituzioni[i]);
 
   var numResults = 0;
-  response = "Per " + assenze.data_stringa + " al docente " + requestedSubstitute + " sono assegnate le seguenti sostituzioni:\n";
+  response = "Per " + assenze.data + " al docente " + resultingTable[0].docenteSostituto + " sono assegnate le seguenti sostituzioni:\n";
 
   for (var i = 0; i < resultingTable.length; i++) { //For each match
-    response += "\nAssente: " + resultingTable[i].Prof_Assente + "\n";
-    response += "Orario: " + resultingTable[i].Orario + "\n";
-    response += "Classe: " + resultingTable[i].Classe + "\n";
-    if (resultingTable[i].Note != "")
-      response += "Note: " + resultingTable[i].Note + "\n";
+    response += "\nAssente: " + resultingTable[i].docenteAssente + "\n";
+    response += "Orario: " + resultingTable[i].orario + "\n";
+    response += "Classe: " + resultingTable[i].classe + "\n";
+    if (resultingTable[i].note != "")
+      response += "Note: " + resultingTable[i].note + "\n";
     numResults++;
   }
 
   if (numResults == 0)
-     response = "Nessuna assenza assegnata per " + assenze.data_stringa + " al docente " + requestedSubstitute + ".";
+     response = "Nessuna assenza assegnata per " + assenze.data + " al docente " + requestedSubstitute + ".";
 
   bot.sendMessage(msg.chat.id, response);
 }
@@ -98,6 +98,7 @@ bot.onText(/^\/assenze$/, (msg, match) => {
 bot.onText(/\/assenze.* (.+)/, msgAssenze);
 
 bot.onText(/\/sostituto.* (.+)/, msgSostituto);
+
 bot.onText(/^\/sostituto$/, (msg, match) => {
   bot.sendMessage(msg.chat.id, "Specifica il nome!");
 });
