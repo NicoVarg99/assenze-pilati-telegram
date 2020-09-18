@@ -3,9 +3,14 @@ const fs = require("fs");
 const TelegramBot = require('node-telegram-bot-api');
 const timediff = require('timediff');
 var requestedSubstitute = "-";
-const token =  fs.readFileSync('token', 'utf8').trim();
+const token = process.env.TOKEN;
 var assenze; //Data or null
 var errorMessage = "Errore nella richiesta al sito scolastico.\nProva a visitarlo manualmente: https://www.istitutopilati.it/gestione_sostituzioni/slideshow_fermo.php";
+
+if (!token) {
+  console.log("ERROR: token is not defined");
+  process.exit(255);
+}
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, {polling: true});
