@@ -6,6 +6,7 @@ var requestedSubstitute = "-";
 const token = process.env.TOKEN;
 var assenze; //Data or null
 var errorMessage = "Errore nella richiesta al sito scolastico.\nProva a visitarlo manualmente: https://www.istitutopilati.it/gestione_sostituzioni/slideshow_fermo.php";
+const savesFileName = "./users-data.json";
 
 if (!token) {
   console.log("ERROR: token is not defined");
@@ -14,6 +15,7 @@ if (!token) {
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, {polling: true});
+bot.on("polling_error", console.log);
 
 var connectionOptions = {
   hostname: 'www.istitutopilati.it',
@@ -104,9 +106,17 @@ bot.onText(/\/assenze.* (.+)/, msgAssenze);
 
 bot.onText(/\/sostituto.* (.+)/, msgSostituto);
 
+bot.onText(/\/aggiornami.* (.+)/, setUpdatesForNewUser);
+
+bot.onText(/^\/aggiornami$/, (msg, match) => {
+  bot.sendMessage(msg.chat.id, "Specifica la classe!");
+});
+
 bot.onText(/^\/sostituto$/, (msg, match) => {
   bot.sendMessage(msg.chat.id, "Specifica il nome!");
 });
+
+bot.onText(/\/aggiornami.* (.+)/, setUpdatesForNewUser);
 
 bot.onText(/\/start.*/, (msg, match) => {
   bot.sendMessage(msg.chat.id, "Bot avviato. Invia un messaggio come /assenze classe");
@@ -195,6 +205,50 @@ function fetchData() {
   req.write("");
   req.end();
 }
+
+function getUsersFromSavesFile() {
+  if (!fs.existsSync(savesFileName))
+  {
+    console.log("Creazione del file di salvataggio");
+    
+    const time = new Date();
+
+    try {
+      fs.utimesSync(savesFileName, time, time);
+    } catch (err) {
+      fs.closeSync(fs.openSync(savesFileName, 'w'));
+    }
+    return {};
+  }
+
+  var rawData = fs.readFileSync(savesFileName);
+
+  if (rawData == '')
+    return [];
+  else
+    return JSON.parse(fs.readFileSync(savesFileName));
+}
+
+function sendInfoToUsers() {
+  console.log("Trovati nuove sostituzioni. Invio agli utenti");
+}
+
+function setUpdatesForNewUser(msg, match) {
+  var data = getUsersFromSavesFile();
+  console.log(data);
+  var user = {
+    id: msg.chat.id,
+    username: msg.chat.username,
+    first_name: msg.chat.first_name
+  };
+
+  data.push(user);
+
+  fs.writeFile(savesFileName, JSON.stringify(data), err => { 
+    if (err) throw err;
+  }); 
+}
+
 
 fetchData(); //Fetch data immediately
 setInterval(fetchData, 5*60*1000); //Fetch data every 5 minutes
