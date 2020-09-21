@@ -32,6 +32,18 @@ String.prototype.toTitleCase = function () {
   });
 }
 
+function writeJSON(dict)
+{
+  const data = JSON.stringify(dict, null, 4);  
+  fs.writeFileSync(savesFileName, data);
+}
+
+function loadJSON() {
+  var data = fs.readFileSync(savesFileName, {encoding: "utf-8", flag: "r"});
+  data = JSON.parse(data.toString());
+  return data;
+}
+
 function msgAssenze(msg, match) {
   // 'msg' is the received Message from Telegram
   // 'match' is the result of executing the regexp above on the text content
@@ -105,8 +117,6 @@ bot.onText(/^\/assenze$/, (msg, match) => {
 bot.onText(/\/assenze.* (.+)/, msgAssenze);
 
 bot.onText(/\/sostituto.* (.+)/, msgSostituto);
-
-bot.onText(/\/aggiornami.* (.+)/, setUpdatesForNewUser);
 
 bot.onText(/^\/aggiornami$/, (msg, match) => {
   bot.sendMessage(msg.chat.id, "Specifica la classe!");
@@ -182,8 +192,6 @@ function fetchData() {
       if (totalData)
         totalData = fixDataFormat(totalData);
 
-      console.log(totalData);
-
       if (assenze) {
         //TODO: Fix comparison between timestamps
         // console.log("Current last update: " + assenze.timestamp);
@@ -207,48 +215,32 @@ function fetchData() {
 }
 
 function getUsersFromSavesFile() {
-  if (!fs.existsSync(savesFileName))
-  {
-    console.log("Creazione del file di salvataggio");
-    
-    const time = new Date();
-
-    try {
-      fs.utimesSync(savesFileName, time, time);
-    } catch (err) {
-      fs.closeSync(fs.openSync(savesFileName, 'w'));
-    }
-    return {};
-  }
-
-  var rawData = fs.readFileSync(savesFileName);
-
-  if (rawData == '')
+  if (!fs.existsSync(savesFileName)) {
+    fs.closeSync(fs.openSync(savesFileName, 'w'));
     return [];
-  else
-    return JSON.parse(fs.readFileSync(savesFileName));
-}
+  }
+  else {
+    var rawData = fs.readFileSync(savesFileName);
 
-function sendInfoToUsers() {
-  console.log("Trovati nuove sostituzioni. Invio agli utenti");
+    if (rawData == '')
+      return [];
+    else
+      return loadJSON();
+  }
 }
-
 function setUpdatesForNewUser(msg, match) {
-  var data = getUsersFromSavesFile();
-  console.log(data);
-  var user = {
+
+  var usersData = getUsersFromSavesFile();
+
+  usersData.push({
     id: msg.chat.id,
     username: msg.chat.username,
-    first_name: msg.chat.first_name
-  };
+    first_name: msg.chat.first_name,
+    school_class: match[1].toUpperCase()
+  });
 
-  data.push(user);
-
-  fs.writeFile(savesFileName, JSON.stringify(data), err => { 
-    if (err) throw err;
-  }); 
+  writeJSON(usersData);
 }
-
 
 fetchData(); //Fetch data immediately
 setInterval(fetchData, 5*60*1000); //Fetch data every 5 minutes
