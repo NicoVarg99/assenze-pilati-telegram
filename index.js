@@ -192,16 +192,10 @@ function fetchData() {
       if (totalData)
         totalData = fixDataFormat(totalData);
 
-      if (assenze) {
-        //TODO: Fix comparison between timestamps
-        // console.log("Current last update: " + assenze.timestamp);
-        // console.log("Remote last update: " + totalData.timestamp);
-        // console.log(timediff('2015-01-01', '2018-05-02 02:15:10.777', 's'));
-        assenze = totalData;
-      } else {
-        //Do not compare
-        assenze = totalData;
-      }
+      if(assenze != totalData)
+        sendUpdates();  
+      assenze = totalData;
+
     });
   });
 
@@ -240,6 +234,35 @@ function setUpdatesForNewUser(msg, match) {
   });
 
   writeJSON(usersData);
+}
+
+function sendUpdates() {
+  const usersData = getUsersFromSavesFile();
+
+  for(var user in usersData) {
+    var resultingTable = [];
+
+    for (var i in assenze.sostituzioni) //For each row
+      if (assenze.sostituzioni[i].classe.toUpperCase() == usersData[user].school_class) //If curent class = requested class
+        resultingTable.push(assenze.sostituzioni[i]);
+
+    var numResults = 0;
+    response = "Per " + assenze.data + " nella classe " + usersData[user].school_class + " sono previste le seguenti assenze:\n";
+
+    for (var i = 0; i < resultingTable.length; i++) { //For each match
+      response += "\nAssente: " + resultingTable[i].docenteAssente + "\n";
+      response += "Sostituto: " + resultingTable[i].docenteSostituto + "\n";
+      response += "Orario: " + resultingTable[i].orario + "\n";
+      if (resultingTable[i].note != "")
+        response += "Note: " + resultingTable[i].note + "\n";
+      numResults++;
+    }
+
+    if (numResults == 0)
+      response = "Nessuna assenza prevista per " + assenze.data + " nella classe " + usersData[user].school_class + ".";
+
+    bot.sendMessage(usersData[user].id, response);
+  }
 }
 
 fetchData(); //Fetch data immediately
