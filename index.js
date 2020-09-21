@@ -4,6 +4,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const timediff = require('timediff');
 var requestedSubstitute = "-";
 const token = process.env.TOKEN;
+var fetchTimes = 0;
 var assenze; //Data or null
 var errorMessage = "Errore nella richiesta al sito scolastico.\nProva a visitarlo manualmente: https://www.istitutopilati.it/gestione_sostituzioni/slideshow_fermo.php";
 const savesFileName = "./users-data.json";
@@ -189,13 +190,16 @@ function fetchData() {
         console.log(e.stack);                  // "@Scratchpad/1:2:3\n"
       }
 
+      /*
       if (totalData)
         totalData = fixDataFormat(totalData);
+      */
 
-      if(assenze != totalData)
+      if(fetchTimes && assenze.timestamp != totalData.timestamp)
         sendUpdates();  
-      assenze = totalData;
 
+      assenze = totalData;
+      fetchTimes++;
     });
   });
 
@@ -247,7 +251,7 @@ function sendUpdates() {
         resultingTable.push(assenze.sostituzioni[i]);
 
     var numResults = 0;
-    response = "Per " + assenze.data + " nella classe " + usersData[user].school_class + " sono previste le seguenti assenze:\n";
+    response = "Hey " + usersData[user].first_name + ". Per " + assenze.data + " nella classe " + usersData[user].school_class + " sono previste le seguenti assenze:\n";
 
     for (var i = 0; i < resultingTable.length; i++) { //For each match
       response += "\nAssente: " + resultingTable[i].docenteAssente + "\n";
@@ -259,11 +263,12 @@ function sendUpdates() {
     }
 
     if (numResults == 0)
-      response = "Nessuna assenza prevista per " + assenze.data + " nella classe " + usersData[user].school_class + ".";
+      response = "Hey " + usersData[user].first_name + ". Nessuna assenza prevista per " + assenze.data + " nella classe " + usersData[user].school_class + ".";
 
     bot.sendMessage(usersData[user].id, response);
   }
 }
 
 fetchData(); //Fetch data immediately
-setInterval(fetchData, 5*60*1000); //Fetch data every 5 minutes
+setInterval(fetchData, 60*1000); //Fetch data every 5 minutes
+// DA AGGIUNGERE 5*
