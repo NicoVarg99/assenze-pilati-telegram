@@ -4,8 +4,10 @@ const TelegramBot = require('node-telegram-bot-api');
 const timediff = require('timediff');
 var requestedSubstitute = "-";
 const token = process.env.TOKEN;
+var fetchTimes = 0;
 var assenze; //Data or null
 var errorMessage = "Errore nella richiesta al sito scolastico.\nProva a visitarlo manualmente: https://www.istitutopilati.it/gestione_sostituzioni/slideshow_fermo.php";
+const savesFileName = "./users-data.json";
 
 if (!token) {
   console.log("ERROR: token is not defined");
@@ -14,6 +16,7 @@ if (!token) {
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, {polling: true});
+bot.on("polling_error", console.log);
 
 var connectionOptions = {
   hostname: 'www.istitutopilati.it',
@@ -28,6 +31,19 @@ String.prototype.toTitleCase = function () {
   return this.replace(/\w\S*/g, txt => {
     return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
   });
+}
+
+function writeJSON(dict) {
+  // Write data in the file
+  const data = JSON.stringify(dict, null, 4);  
+  fs.writeFileSync(savesFileName, data);
+}
+
+function loadJSON() {
+  // Read the data written in the file
+  var data = fs.readFileSync(savesFileName, {encoding: "utf-8", flag: "r"});
+  data = JSON.parse(data.toString());
+  return data;
 }
 
 function msgAssenze(msg, match) {
@@ -104,15 +120,21 @@ bot.onText(/\/assenze.* (.+)/, msgAssenze);
 
 bot.onText(/\/sostituto.* (.+)/, msgSostituto);
 
+bot.onText(/^\/aggiornami$/, (msg, match) => {
+  bot.sendMessage(msg.chat.id, "Specifica la classe!");
+});
+
 bot.onText(/^\/sostituto$/, (msg, match) => {
   bot.sendMessage(msg.chat.id, "Specifica il nome!");
 });
 
+bot.onText(/\/aggiornami.* (.+)/, setUpdatesForNewUser);
+
 bot.onText(/\/start.*/, (msg, match) => {
-  bot.sendMessage(msg.chat.id, "Bot avviato. Invia un messaggio come /assenze classe");
+  bot.sendMessage(msg.chat.id, "Bot avviato. Invia un messaggio come /assenze classe.\n Per essere aggiornato su ogni nuova sostituzione invia /aggiornami classe");
 });
 bot.onText(/^\/help$/, (msg, match) => {
-  bot.sendMessage(msg.chat.id, "Comandi disponibili:\n\n/assenze classe\n/sostituto nome");
+  bot.sendMessage(msg.chat.id, "Comandi disponibili:\n\n/assenze classe\n/sostituto nome\n/aggiornami classe");
 });
 bot.onText(/^ping$/, (msg, match) => {
   bot.sendMessage(msg.chat.id, "pong");
@@ -133,18 +155,6 @@ bot.onText(/.*/, (msg, match) => {
   });
 
 });
-
-function fixDataFormat(data) { //Fixes conceptual errors in the remote JSON
-  data.values = Array();
-
-  for (var i in data.valori) {
-    data.valori[i].id = i;
-    data.values.push(data.valori[i]);
-  }
-
-  delete data.valori; //Remove valori
-  return data;
-}
 
 function fetchData() {
   //Fetches new data - To be called at regular intervals or after requests
@@ -167,23 +177,14 @@ function fetchData() {
         console.log(e.lineNumber);             // 1
         console.log(e.columnNumber);           // 4
         console.log(e.stack);                  // "@Scratchpad/1:2:3\n"
-      }
+      } 
 
-      if (totalData)
-        totalData = fixDataFormat(totalData);
+      // When the site updates it sends news to users
+      if(fetchTimes && assenze.timestamp != totalData.timestamp)
+        sendUpdates();  
 
-      console.log(totalData);
-
-      if (assenze) {
-        //TODO: Fix comparison between timestamps
-        // console.log("Current last update: " + assenze.timestamp);
-        // console.log("Remote last update: " + totalData.timestamp);
-        // console.log(timediff('2015-01-01', '2018-05-02 02:15:10.777', 's'));
-        assenze = totalData;
-      } else {
-        //Do not compare
-        assenze = totalData;
-      }
+      assenze = totalData;
+      fetchTimes++;
     });
   });
 
@@ -194,6 +195,88 @@ function fetchData() {
 
   req.write("");
   req.end();
+}
+
+function getUsersFromSavesFile() {
+  // Returns the subscribers list
+  if (!fs.existsSync(savesFileName)) {
+    fs.closeSync(fs.openSync(savesFileName, 'w'));
+    return [];
+  }
+  else {
+    var rawData = fs.readFileSync(savesFileName);
+
+    if (rawData == '')
+      return [];
+    else
+      return loadJSON();
+  }
+}
+
+function setUpdatesForNewUser(msg, match) {
+  // Subscribe a new user
+
+  var usersData = getUsersFromSavesFile();
+
+  const newUser = {
+    id: msg.chat.id,
+    username: msg.chat.username,
+    first_name: msg.chat.first_name,
+    school_class: match[1].toUpperCase()
+  }
+
+  var found = undefined;
+
+  for(var user = 0; user < usersData.length; user++) {
+    console.log(newUser.id + " " + usersData[user].id);
+    if (newUser.id == usersData[user].id)
+      found = user;
+  }
+
+  if (found == undefined) {
+      usersData.push(newUser);
+      bot.sendMessage(newUser.id, "Ottimo, verrai aggiornato sulle sostituzioni della classe "
+                      + newUser.school_class + ".\n Per cambiare la classe digita /aggiornami nuova_classe");
+  }
+  else {
+    usersData[found] = newUser;
+    bot.sendMessage(newUser.id, "Va bene, da ora verrai aggiornato sulla classe " + newUser.school_class);
+  }
+
+  console.log(usersData);
+
+  writeJSON(usersData);
+}
+
+function sendUpdates() {
+  // For each person subscribed sends the news related to their class
+
+  const usersData = getUsersFromSavesFile();
+
+  for(var user in usersData) {
+    var resultingTable = [];
+
+    for (var i in assenze.sostituzioni) //For each row
+      if (assenze.sostituzioni[i].classe.toUpperCase() == usersData[user].school_class) //If curent class = requested class
+        resultingTable.push(assenze.sostituzioni[i]);
+
+    var numResults = 0;
+    response = "Hey " + usersData[user].first_name + ". Per " + assenze.data + " nella classe " + usersData[user].school_class + " sono previste le seguenti assenze:\n";
+
+    for (var i = 0; i < resultingTable.length; i++) { //For each match
+      response += "\nAssente: " + resultingTable[i].docenteAssente + "\n";
+      response += "Sostituto: " + resultingTable[i].docenteSostituto + "\n";
+      response += "Orario: " + resultingTable[i].orario + "\n";
+      if (resultingTable[i].note != "")
+        response += "Note: " + resultingTable[i].note + "\n";
+      numResults++;
+    }
+
+    if (numResults == 0)
+      response = "Hey " + usersData[user].first_name + ". Nessuna assenza prevista per " + assenze.data + " nella classe " + usersData[user].school_class + ".";
+
+    bot.sendMessage(usersData[user].id, response);
+  }
 }
 
 fetchData(); //Fetch data immediately
