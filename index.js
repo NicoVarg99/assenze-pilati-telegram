@@ -33,13 +33,14 @@ String.prototype.toTitleCase = function () {
   });
 }
 
-function writeJSON(dict)
-{
+function writeJSON(dict) {
+  // Write data in the file
   const data = JSON.stringify(dict, null, 4);  
   fs.writeFileSync(savesFileName, data);
 }
 
 function loadJSON() {
+  // Read the data written in the file
   var data = fs.readFileSync(savesFileName, {encoding: "utf-8", flag: "r"});
   data = JSON.parse(data.toString());
   return data;
@@ -130,10 +131,10 @@ bot.onText(/^\/sostituto$/, (msg, match) => {
 bot.onText(/\/aggiornami.* (.+)/, setUpdatesForNewUser);
 
 bot.onText(/\/start.*/, (msg, match) => {
-  bot.sendMessage(msg.chat.id, "Bot avviato. Invia un messaggio come /assenze classe");
+  bot.sendMessage(msg.chat.id, "Bot avviato. Invia un messaggio come /assenze classe.\n Per essere aggiornato su ogni nuova sostituzione invia /aggiornami classe");
 });
 bot.onText(/^\/help$/, (msg, match) => {
-  bot.sendMessage(msg.chat.id, "Comandi disponibili:\n\n/assenze classe\n/sostituto nome");
+  bot.sendMessage(msg.chat.id, "Comandi disponibili:\n\n/assenze classe\n/sostituto nome\n/aggiornami classe");
 });
 bot.onText(/^ping$/, (msg, match) => {
   bot.sendMessage(msg.chat.id, "pong");
@@ -154,18 +155,6 @@ bot.onText(/.*/, (msg, match) => {
   });
 
 });
-
-function fixDataFormat(data) { //Fixes conceptual errors in the remote JSON
-  data.values = Array();
-
-  for (var i in data.valori) {
-    data.valori[i].id = i;
-    data.values.push(data.valori[i]);
-  }
-
-  delete data.valori; //Remove valori
-  return data;
-}
 
 function fetchData() {
   //Fetches new data - To be called at regular intervals or after requests
@@ -188,13 +177,9 @@ function fetchData() {
         console.log(e.lineNumber);             // 1
         console.log(e.columnNumber);           // 4
         console.log(e.stack);                  // "@Scratchpad/1:2:3\n"
-      }
+      } 
 
-      /*
-      if (totalData)
-        totalData = fixDataFormat(totalData);
-      */
-
+      // When the site updates it sends news to users
       if(fetchTimes && assenze.timestamp != totalData.timestamp)
         sendUpdates();  
 
@@ -213,6 +198,7 @@ function fetchData() {
 }
 
 function getUsersFromSavesFile() {
+  // Returns the subscribers list
   if (!fs.existsSync(savesFileName)) {
     fs.closeSync(fs.openSync(savesFileName, 'w'));
     return [];
@@ -226,21 +212,45 @@ function getUsersFromSavesFile() {
       return loadJSON();
   }
 }
+
 function setUpdatesForNewUser(msg, match) {
+  // Subscribe a new user
 
   var usersData = getUsersFromSavesFile();
 
-  usersData.push({
+  const newUser = {
     id: msg.chat.id,
     username: msg.chat.username,
     first_name: msg.chat.first_name,
     school_class: match[1].toUpperCase()
-  });
+  }
+
+  var found = undefined;
+
+  for(var user = 0; user < usersData.length; user++) {
+    console.log(newUser.id + " " + usersData[user].id);
+    if (newUser.id == usersData[user].id)
+      found = user;
+  }
+
+  if (found == undefined) {
+      usersData.push(newUser);
+      bot.sendMessage(newUser.id, "Ottimo, verrai aggiornato sulle sostituzioni della classe "
+                      + newUser.school_class + ".\n Per cambiare la classe digita /aggiornami nuova_classe");
+  }
+  else {
+    usersData[found] = newUser;
+    bot.sendMessage(newUser.id, "Va bene, da ora verrai aggiornato sulla classe " + newUser.school_class);
+  }
+
+  console.log(usersData);
 
   writeJSON(usersData);
 }
 
 function sendUpdates() {
+  // For each person subscribed sends the news related to their class
+
   const usersData = getUsersFromSavesFile();
 
   for(var user in usersData) {
@@ -270,5 +280,4 @@ function sendUpdates() {
 }
 
 fetchData(); //Fetch data immediately
-setInterval(fetchData, 60*1000); //Fetch data every 5 minutes
-// DA AGGIUNGERE 5*
+setInterval(fetchData, 5*60*1000); //Fetch data every 5 minutes
