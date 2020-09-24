@@ -222,7 +222,9 @@ function setUpdatesForNewUser(msg, match) {
     id: msg.chat.id,
     username: msg.chat.username,
     first_name: msg.chat.first_name,
-    school_class: match[1].toUpperCase()
+    school_class: match[1].toUpperCase(),
+    date: null,
+    sended: null
   }
 
   var found = undefined;
@@ -236,7 +238,7 @@ function setUpdatesForNewUser(msg, match) {
   if (found == undefined) {
       usersData.push(newUser);
       bot.sendMessage(newUser.id, "Ottimo, verrai aggiornato sulle sostituzioni della classe "
-                      + newUser.school_class + ".\n Per cambiare la classe digita /aggiornami nuova_classe");
+                      + newUser.school_class + ".\nPer cambiare la classe digita /aggiornami nuova_classe");
   }
   else {
     usersData[found] = newUser;
@@ -260,22 +262,28 @@ function sendUpdates() {
       if (assenze.sostituzioni[i].classe.toUpperCase() == usersData[user].school_class) //If curent class = requested class
         resultingTable.push(assenze.sostituzioni[i]);
 
-    var numResults = 0;
-    response = "Hey " + usersData[user].first_name + ". Per " + assenze.data + " nella classe " + usersData[user].school_class + " sono previste le seguenti assenze:\n";
+    if (usersData[user].sended != resultingTable || usersData[user].date != assenze.data) {
+      var numResults = 0;
+      response = "Hey " + usersData[user].first_name + ". Per " + assenze.data + " nella classe " + usersData[user].school_class + " sono previste le seguenti assenze:\n";
 
-    for (var i = 0; i < resultingTable.length; i++) { //For each match
-      response += "\nAssente: " + resultingTable[i].docenteAssente + "\n";
-      response += "Sostituto: " + resultingTable[i].docenteSostituto + "\n";
-      response += "Orario: " + resultingTable[i].orario + "\n";
-      if (resultingTable[i].note != "")
-        response += "Note: " + resultingTable[i].note + "\n";
-      numResults++;
+      for (var i = 0; i < resultingTable.length; i++) { //For each match
+        response += "\nAssente: " + resultingTable[i].docenteAssente + "\n";
+        response += "Sostituto: " + resultingTable[i].docenteSostituto + "\n";
+        response += "Orario: " + resultingTable[i].orario + "\n";
+        if (resultingTable[i].note != "")
+          response += "Note: " + resultingTable[i].note + "\n";
+        numResults++;
+      }
+
+      if (numResults == 0)
+        response = "Hey " + usersData[user].first_name + ". Nessuna assenza prevista per " + assenze.data + " nella classe " + usersData[user].school_class + ".";
+
+      bot.sendMessage(usersData[user].id, response);
     }
 
-    if (numResults == 0)
-      response = "Hey " + usersData[user].first_name + ". Nessuna assenza prevista per " + assenze.data + " nella classe " + usersData[user].school_class + ".";
-
-    bot.sendMessage(usersData[user].id, response);
+    usersData[user].sended = resultingTable;
+    usersData[user].date = assenze.data;
+    writeJSON(usersData);
   }
 }
 
