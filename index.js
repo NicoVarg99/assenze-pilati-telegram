@@ -223,8 +223,8 @@ function setUpdatesForNewUser(msg, match) {
     username: msg.chat.username,
     first_name: msg.chat.first_name,
     school_class: match[1].toUpperCase(),
-    date: undefined,
-    sended: undefined
+    date: null,
+    sended: null
   }
 
   var found = undefined;
@@ -238,7 +238,7 @@ function setUpdatesForNewUser(msg, match) {
   if (found == undefined) {
       usersData.push(newUser);
       bot.sendMessage(newUser.id, "Ottimo, verrai aggiornato sulle sostituzioni della classe "
-                      + newUser.school_class + ".\n Per cambiare la classe digita /aggiornami nuova_classe");
+                      + newUser.school_class + ".\nPer cambiare la classe digita /aggiornami nuova_classe");
   }
   else {
     usersData[found] = newUser;
